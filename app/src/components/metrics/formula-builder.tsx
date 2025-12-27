@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,17 +14,16 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Plus,
-  X,
   Calculator,
   Filter,
   Hash,
-  Clock,
-  DollarSign,
   Percent,
   ChevronDown,
   ChevronRight,
+  Link2,
+  Type,
 } from "lucide-react";
 import type { MetricFormula } from "@/types";
 
@@ -33,34 +32,101 @@ interface FormulaBuilderProps {
   onChange: (formula: MetricFormula) => void;
 }
 
-// Available fields for formulas
+// Available fields for formulas - expanded with more options
 const availableFields = {
   load: [
-    { value: "length_of_haul.value", label: "Length of Haul (miles)" },
-    { value: "charges.line_items.amount.value", label: "Charge Amount" },
-    { value: "tender.response_time", label: "Tender Response Time" },
+    { value: "length_of_haul.value", label: "Length of Haul (miles)", type: "number" },
+    { value: "charges.total", label: "Total Charges", type: "number" },
+    { value: "charges.line_items.amount.value", label: "Charge Amount", type: "number" },
+    { value: "tender.response_time", label: "Tender Response Time", type: "number" },
+    { value: "contract_type", label: "Contract Type", type: "string" },
+    { value: "mode", label: "Mode", type: "string" },
+    { value: "equipment_type", label: "Equipment Type", type: "string" },
+    { value: "load_status", label: "Load Status", type: "string" },
   ],
   stop: [
-    { value: "actual.arrival", label: "Actual Arrival" },
-    { value: "actual.departure", label: "Actual Departure" },
-    { value: "appointment.scheduled_earliest", label: "Scheduled Earliest" },
-    { value: "appointment.scheduled_latest", label: "Scheduled Latest" },
-    { value: "dwell_time_minutes", label: "Dwell Time (minutes)" },
-    { value: "stop_type", label: "Stop Type" },
+    { value: "actual.arrival", label: "Actual Arrival", type: "datetime" },
+    { value: "actual.departure", label: "Actual Departure", type: "datetime" },
+    { value: "appointment.scheduled_earliest", label: "Scheduled Earliest", type: "datetime" },
+    { value: "appointment.scheduled_latest", label: "Scheduled Latest", type: "datetime" },
+    { value: "appointment.original_earliest", label: "Original Earliest", type: "datetime" },
+    { value: "appointment.original_latest", label: "Original Latest", type: "datetime" },
+    { value: "dwell_time_minutes", label: "Dwell Time (minutes)", type: "number" },
+    { value: "stop_type", label: "Stop Type", type: "string" },
+    { value: "loading_type", label: "Loading Type", type: "string" },
+    { value: "sequence", label: "Stop Sequence", type: "number" },
   ],
   charge: [
-    { value: "charge_type", label: "Charge Type" },
-    { value: "amount.value", label: "Amount" },
+    { value: "charge_type", label: "Charge Type", type: "string" },
+    { value: "amount.value", label: "Amount", type: "number" },
+    { value: "amount.currency", label: "Currency", type: "string" },
   ],
   tender: [
-    { value: "status", label: "Tender Status" },
-    { value: "tendered_at", label: "Tendered At" },
-    { value: "accepted_at", label: "Accepted At" },
-    { value: "rejected_at", label: "Rejected At" },
+    { value: "status", label: "Tender Status", type: "string" },
+    { value: "tendered_at", label: "Tendered At", type: "datetime" },
+    { value: "accepted_at", label: "Accepted At", type: "datetime" },
+    { value: "rejected_at", label: "Rejected At", type: "datetime" },
+    { value: "rejection_reason", label: "Rejection Reason", type: "string" },
   ],
   late_reason: [
-    { value: "late_reason.responsible_party", label: "Responsible Party" },
-    { value: "late_reason.code", label: "Late Reason Code" },
+    { value: "late_reason.responsible_party", label: "Responsible Party", type: "string" },
+    { value: "late_reason.code", label: "Late Reason Code", type: "string" },
+    { value: "late_reason.description", label: "Late Reason Description", type: "string" },
+  ],
+  location: [
+    { value: "location.state", label: "Location State", type: "string" },
+    { value: "location.city", label: "Location City", type: "string" },
+    { value: "location.type", label: "Location Type", type: "string" },
+  ],
+};
+
+// Predefined values for common fields
+const predefinedValues: Record<string, { value: string; label: string }[]> = {
+  stop_type: [
+    { value: "PICKUP", label: "Pickup" },
+    { value: "DELIVERY", label: "Delivery" },
+  ],
+  loading_type: [
+    { value: "LIVE", label: "Live" },
+    { value: "DROP", label: "Drop" },
+  ],
+  contract_type: [
+    { value: "CONTRACT_PRIMARY", label: "Primary Contract" },
+    { value: "CONTRACT_BACKUP", label: "Backup Contract" },
+  ],
+  mode: [
+    { value: "TRUCKLOAD", label: "Truckload" },
+    { value: "LTL", label: "LTL" },
+    { value: "PARCEL", label: "Parcel" },
+  ],
+  load_status: [
+    { value: "DELIVERED", label: "Delivered" },
+    { value: "IN_TRANSIT", label: "In Transit" },
+    { value: "REJECTED", label: "Rejected" },
+    { value: "PENDING", label: "Pending" },
+  ],
+  status: [
+    { value: "ACCEPTED", label: "Accepted" },
+    { value: "REJECTED", label: "Rejected" },
+    { value: "PENDING", label: "Pending" },
+  ],
+  "late_reason.responsible_party": [
+    { value: "SHIPPER", label: "Shipper" },
+    { value: "CARRIER", label: "Carrier" },
+    { value: "CUSTOMER", label: "Customer" },
+    { value: "FORCE_MAJEURE", label: "Force Majeure" },
+  ],
+  charge_type: [
+    { value: "LINE_HAUL", label: "Line Haul" },
+    { value: "FUEL_SURCHARGE", label: "Fuel Surcharge" },
+    { value: "DETENTION", label: "Detention" },
+    { value: "ACCESSORIAL", label: "Accessorial" },
+  ],
+  "location.type": [
+    { value: "WAREHOUSE", label: "Warehouse" },
+    { value: "FULFILLMENT_CENTER", label: "Fulfillment Center" },
+    { value: "PORT", label: "Port" },
+    { value: "DISTRIBUTION_CENTER", label: "Distribution Center" },
   ],
 };
 
@@ -97,6 +163,8 @@ interface FilterCondition {
   field: string;
   operator: string;
   value: string | number | boolean;
+  value_type?: "static" | "field"; // New: indicates if value is a static value or field reference
+  value_field?: string; // New: the field to compare against when value_type is "field"
 }
 
 interface AggregationBlock {
@@ -109,6 +177,8 @@ interface AggregationBlock {
     field?: string;
     operator?: string;
     value?: string | number | boolean;
+    value_type?: "static" | "field";
+    value_field?: string;
   };
 }
 
@@ -138,13 +208,13 @@ export function FormulaBuilder({ formula, onChange }: FormulaBuilderProps) {
             type: "aggregation",
             function: "COUNT",
             field: "stops",
-            filter: { field: "", operator: "=", value: "" },
+            filter: { field: "", operator: "=", value: "", value_type: "static" },
           },
           denominator: {
             type: "aggregation",
             function: "COUNT",
             field: "stops",
-            filter: { field: "", operator: "=", value: "" },
+            filter: { field: "", operator: "=", value: "", value_type: "static" },
           },
         };
         break;
@@ -160,7 +230,7 @@ export function FormulaBuilder({ formula, onChange }: FormulaBuilderProps) {
           type: "aggregation",
           function: "COUNT",
           field: "loads",
-          filter: { field: "", operator: "=", value: "" },
+          filter: { field: "", operator: "=", value: "", value_type: "static" },
         };
         break;
       default:
@@ -218,6 +288,141 @@ export function FormulaBuilder({ formula, onChange }: FormulaBuilderProps) {
     });
   };
 
+  // Get field info to determine its type
+  const getFieldInfo = (fieldPath: string) => {
+    for (const fields of Object.values(availableFields)) {
+      const field = fields.find((f) => f.value === fieldPath);
+      if (field) return field;
+    }
+    return null;
+  };
+
+  // Check if operator requires a value
+  const operatorRequiresValue = (operator: string) => {
+    return !["IS_NULL", "IS_NOT_NULL"].includes(operator);
+  };
+
+  const renderValueInput = (
+    filter: FilterCondition | undefined,
+    onUpdate: (updates: Partial<FilterCondition>) => void
+  ) => {
+    const operator = filter?.operator || "=";
+    const valueType = filter?.value_type || "static";
+    const fieldPath = filter?.field || "";
+    const fieldInfo = getFieldInfo(fieldPath);
+    const predefinedOptions = predefinedValues[fieldPath];
+
+    // No value input for null checks
+    if (!operatorRequiresValue(operator)) {
+      return (
+        <div className="h-9 flex items-center text-sm text-muted-foreground italic">
+          No value needed
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-2">
+        {/* Value Type Selector */}
+        <Tabs
+          value={valueType}
+          onValueChange={(v) =>
+            onUpdate({
+              value_type: v as "static" | "field",
+              value: v === "field" ? "" : filter?.value || "",
+              value_field: v === "field" ? filter?.value_field || "" : undefined,
+            })
+          }
+          className="w-full"
+        >
+          <TabsList className="grid w-full grid-cols-2 h-8">
+            <TabsTrigger value="static" className="text-xs gap-1">
+              <Type className="h-3 w-3" />
+              Static
+            </TabsTrigger>
+            <TabsTrigger value="field" className="text-xs gap-1">
+              <Link2 className="h-3 w-3" />
+              Field
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {/* Value Input based on type */}
+        {valueType === "static" ? (
+          // Static value input
+          predefinedOptions ? (
+            <Select
+              value={filter?.value?.toString() || undefined}
+              onValueChange={(value) => onUpdate({ value })}
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Select value" />
+              </SelectTrigger>
+              <SelectContent>
+                {predefinedOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : fieldInfo?.type === "number" ? (
+            <Input
+              type="number"
+              className="h-9"
+              placeholder="Enter number"
+              value={filter?.value?.toString() || ""}
+              onChange={(e) => onUpdate({ value: parseFloat(e.target.value) || 0 })}
+            />
+          ) : fieldInfo?.type === "datetime" ? (
+            <Input
+              type="datetime-local"
+              className="h-9"
+              value={filter?.value?.toString() || ""}
+              onChange={(e) => onUpdate({ value: e.target.value })}
+            />
+          ) : (
+            <Input
+              className="h-9"
+              placeholder="Enter value"
+              value={filter?.value?.toString() || ""}
+              onChange={(e) => onUpdate({ value: e.target.value })}
+            />
+          )
+        ) : (
+          // Field reference selector
+          <Select
+            value={filter?.value_field || undefined}
+            onValueChange={(value) => onUpdate({ value_field: value, value: `$${value}` })}
+          >
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="Select field to compare" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(availableFields).map(([group, fields]) => (
+                <div key={group}>
+                  <div className="px-2 py-1 text-xs font-semibold text-muted-foreground uppercase">
+                    {group}
+                  </div>
+                  {fields.map((field) => (
+                    <SelectItem key={field.value} value={field.value}>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-[10px] px-1">
+                          {field.type}
+                        </Badge>
+                        {field.label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </div>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+    );
+  };
+
   const renderFilterBuilder = (
     filter: FilterCondition | undefined,
     onUpdate: (updates: Partial<FilterCondition>) => void,
@@ -228,12 +433,12 @@ export function FormulaBuilder({ formula, onChange }: FormulaBuilderProps) {
         <Filter className="h-4 w-4 text-muted-foreground" />
         <span className="text-sm font-medium">{label}</span>
       </div>
-      <div className="grid grid-cols-3 gap-2">
-        <div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="space-y-1">
           <Label className="text-xs">Field</Label>
           <Select
             value={filter?.field || undefined}
-            onValueChange={(value) => onUpdate({ field: value })}
+            onValueChange={(value) => onUpdate({ field: value, value: "", value_field: undefined })}
           >
             <SelectTrigger className="h-9">
               <SelectValue placeholder="Select field" />
@@ -246,7 +451,12 @@ export function FormulaBuilder({ formula, onChange }: FormulaBuilderProps) {
                   </div>
                   {fields.map((field) => (
                     <SelectItem key={field.value} value={field.value}>
-                      {field.label}
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-[10px] px-1">
+                          {field.type}
+                        </Badge>
+                        {field.label}
+                      </div>
                     </SelectItem>
                   ))}
                 </div>
@@ -254,7 +464,7 @@ export function FormulaBuilder({ formula, onChange }: FormulaBuilderProps) {
             </SelectContent>
           </Select>
         </div>
-        <div>
+        <div className="space-y-1">
           <Label className="text-xs">Operator</Label>
           <Select
             value={filter?.operator || "="}
@@ -272,16 +482,20 @@ export function FormulaBuilder({ formula, onChange }: FormulaBuilderProps) {
             </SelectContent>
           </Select>
         </div>
-        <div>
+        <div className="space-y-1">
           <Label className="text-xs">Value</Label>
-          <Input
-            className="h-9"
-            placeholder="Value"
-            value={filter?.value?.toString() || ""}
-            onChange={(e) => onUpdate({ value: e.target.value })}
-          />
+          {renderValueInput(filter, onUpdate)}
         </div>
       </div>
+
+      {/* Show comparison summary when field reference is used */}
+      {filter?.value_type === "field" && filter?.field && filter?.value_field && (
+        <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-950 rounded border border-blue-200 dark:border-blue-800">
+          <p className="text-xs text-blue-700 dark:text-blue-300">
+            <strong>Comparison:</strong> {filter.field} {filter.operator} {filter.value_field}
+          </p>
+        </div>
+      )}
     </div>
   );
 
@@ -461,7 +675,7 @@ export function FormulaBuilder({ formula, onChange }: FormulaBuilderProps) {
                       {group}
                     </div>
                     {fields
-                      .filter((f) => !f.value.includes("type") && !f.value.includes("status"))
+                      .filter((f) => f.type === "number")
                       .map((field) => (
                         <SelectItem key={field.value} value={field.value}>
                           {field.label}
@@ -488,15 +702,24 @@ export function FormulaBuilder({ formula, onChange }: FormulaBuilderProps) {
       </Card>
 
       {/* Help Text */}
-      <div className="text-xs text-muted-foreground space-y-1">
+      <div className="text-xs text-muted-foreground space-y-2">
         <p>
           <strong>Tip:</strong> Use filters to specify which records should be
           included in the calculation.
         </p>
         <p>
-          Example: To calculate OTP for pickups only, set the filter to
-          &quot;stop_type = PICKUP&quot;
+          <strong>Static values:</strong> Compare a field to a fixed value (e.g., stop_type = PICKUP)
         </p>
+        <p>
+          <strong>Field references:</strong> Compare a field to another field (e.g., actual.arrival &lt;= appointment.original_earliest for OTP to original appointment)
+        </p>
+        <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950 rounded border border-blue-200 dark:border-blue-800">
+          <p className="font-medium text-blue-800 dark:text-blue-200 mb-1">Example: On-Time Pickup to Original Appointment</p>
+          <ul className="list-disc list-inside text-blue-700 dark:text-blue-300 space-y-1">
+            <li>Numerator: COUNT(stops) WHERE actual.arrival &lt;= appointment.original_earliest AND stop_type = PICKUP</li>
+            <li>Denominator: COUNT(stops) WHERE stop_type = PICKUP</li>
+          </ul>
+        </div>
       </div>
     </div>
   );

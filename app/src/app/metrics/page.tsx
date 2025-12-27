@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Search, Filter } from "lucide-react";
+import { Plus, Search, Filter, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -25,6 +25,7 @@ import {
 import { MetricCard } from "@/components/metrics/metric-card";
 import { FormulaViewer } from "@/components/metrics/formula-viewer";
 import { MetricForm } from "@/components/metrics/metric-form";
+import { AIMetricAssistant } from "@/components/ai-assistant/ai-metric-assistant";
 import { metricDefinitions as baselineMetricDefinitions } from "@/data";
 import type { MetricDefinition } from "@/types";
 
@@ -40,6 +41,7 @@ export default function MetricsPage() {
   const [editingMetric, setEditingMetric] = useState<MetricDefinition | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [metricToDelete, setMetricToDelete] = useState<MetricDefinition | null>(null);
+  const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
 
   // Custom metrics state (persisted to localStorage)
   const [customMetrics, setCustomMetrics] = useState<MetricDefinition[]>([]);
@@ -134,6 +136,27 @@ export default function MetricsPage() {
     setEditingMetric(null);
   };
 
+  const handleAIGenerate = (metric: Partial<MetricDefinition>) => {
+    // Create a partial metric definition and open the form with it pre-filled
+    const prefilledMetric: MetricDefinition = {
+      metric_id: `metric_${Date.now()}`,
+      metric_code: metric.metric_code || "",
+      metric_name: metric.metric_name || "",
+      description: metric.description || "",
+      formula: metric.formula || { type: "percentage" },
+      return_type: metric.return_type || "PERCENTAGE",
+      unit: metric.unit || "%",
+      precision: metric.precision || 1,
+      is_baseline: false,
+      category: metric.category || "PERFORMANCE",
+      is_active: true,
+      created_by: "current_user",
+      created_at: new Date().toISOString(),
+    };
+    setEditingMetric(prefilledMetric);
+    setMetricFormOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -144,10 +167,16 @@ export default function MetricsPage() {
             Manage and create custom metric definitions for your logistics operations
           </p>
         </div>
-        <Button onClick={handleCreateMetric}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Metric
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setAiAssistantOpen(true)}>
+            <Sparkles className="h-4 w-4 mr-2" />
+            AI Builder
+          </Button>
+          <Button onClick={handleCreateMetric}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Metric
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -274,6 +303,13 @@ export default function MetricsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* AI Assistant */}
+      <AIMetricAssistant
+        open={aiAssistantOpen}
+        onOpenChange={setAiAssistantOpen}
+        onGenerate={handleAIGenerate}
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -86,6 +86,25 @@ export function MetricForm({
   const [activeTab, setActiveTab] = useState("basic");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Sync form data when initialMetric changes (for AI-generated metrics)
+  useEffect(() => {
+    if (initialMetric) {
+      setFormData({
+        metric_name: initialMetric.metric_name || "",
+        metric_code: initialMetric.metric_code || "",
+        description: initialMetric.description || "",
+        return_type: initialMetric.return_type || "PERCENTAGE",
+        unit: initialMetric.unit || "%",
+        precision: initialMetric.precision || 1,
+        category: initialMetric.category || "PERFORMANCE",
+        is_baseline: initialMetric.is_baseline || false,
+      });
+      if (initialMetric.formula) {
+        setFormula(initialMetric.formula);
+      }
+    }
+  }, [initialMetric]);
+
   const generateCode = (name: string) => {
     return name
       .toUpperCase()
@@ -161,7 +180,7 @@ export function MetricForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] w-full h-[95vh] flex flex-col">
+      <DialogContent className="!max-w-[95vw] w-full h-[95vh] flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle>
             {mode === "create" ? "Create New Metric" : "Edit Metric"}
